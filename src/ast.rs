@@ -1,5 +1,3 @@
-use crate::lexer::Token;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimeUnit {
     Second,
@@ -24,8 +22,8 @@ impl Quantity {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
-    Binary(Box<Expr>, Token, Box<Expr>),
-    Unary(Token, Box<Expr>),
+    Binary(Box<Expr>, String, Box<Expr>),
+    Unary(String, Box<Expr>),
     Literal(Literal),
 }
 

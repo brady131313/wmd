@@ -1,105 +1,125 @@
-use logos::{Lexer, Logos};
-
 use crate::ast::{Quantity, TimeUnit, Unit};
 
-#[derive(Debug, Clone, PartialEq, Logos)]
-pub enum Token {
-    #[regex(r"([+-]?([0-9]+\.?[0-9]*|\.[0-9]+))([xsm%])", lex_quantity)]
-    Quantity(Quantity),
-    #[regex(r"[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)", lex_number)]
-    Num(f64),
-    #[regex(r#""([^"\\]|\\t|\\u|\\n|\\")*""#)]
-    String,
-    #[regex(r"[a-zA-Z_][a-zA-Z0-9_]*")]
-    Ident,
-    #[regex("true|false", lex_bool)]
-    Bool(bool),
-    #[token("!")]
-    OpBang,
-    #[token("=")]
-    OpAssign,
-    #[token("+")]
-    OpPlus,
-    #[token("-")]
-    OpMinus,
-    #[token("/")]
-    OpSlash,
-    #[token("*")]
-    OpStar,
-    #[token("!=")]
-    OpNotEq,
-    #[token("==")]
-    OpEq,
-    #[token("<=")]
-    OpLte,
-    #[token("<")]
-    OpLt,
-    #[token(">=")]
-    OpGte,
-    #[token(">")]
-    OpGt,
-    #[token("(")]
-    LRound,
-    #[token(")")]
-    RRound,
-    #[token("[")]
-    LSquare,
-    #[token("]")]
-    RSquare,
-    #[token("{")]
-    LCurly,
-    #[token("}")]
-    RCurly,
-    #[token(",")]
+#[derive(Debug, Clone, Copy)]
+pub enum TokenType {
+    // Single character tokens
+    LParen,
+    RParen,
+    LBrace,
+    RBrace,
     Comma,
-    #[token("fn")]
-    Fn,
-    #[token("if")]
-    If,
-    #[token("else")]
-    Else,
-    #[token("nil")]
-    Nil,
-    #[regex(r"(\n)")]
-    Newline,
-    #[token("and")]
+    Dot,
+    Minus,
+    Plus,
+    Slash,
+    Star,
+
+    // One or two character tokens
+    Bang,
+    BangEqual,
+    Equal,
+    EqualEqual,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
+
+    // Literals
+    Identifier,
+    String,
+    Number,
+    Quantity,
+
+    // Keywords
     And,
-    #[token("or")]
+    Else,
+    False,
+    Fn,
+    For,
+    If,
+    Nil,
     Or,
-    #[token("while")]
+    True,
     While,
-    EOI,
-    #[error]
-    #[regex(r"[ \t\f]+", logos::skip)]
-    Error,
+
+    Eof,
 }
 
-fn lex_bool(lex: &mut Lexer<Token>) -> bool {
-    match lex.slice() {
-        "true" => true,
-        "false" => false,
-        _ => unreachable!(),
+#[derive(Debug, Clone)]
+pub enum TokenLiteral {}
+
+#[derive(Debug, Clone)]
+pub struct Token<'source> {
+    typ: TokenType,
+    lexeme: &'source str,
+    literal: Option<TokenLiteral>,
+    line: usize,
+}
+
+pub struct Lexer<'source> {
+    src: &'source str,
+    tokens: Vec<Token<'source>>,
+    start: usize,   // First character in lexeme being scanned
+    current: usize, // character currently being considered
+    line: usize,
+}
+
+impl<'source> Lexer<'source> {
+    pub fn new(src: &'source str) -> Self {
+        Self {
+            src,
+            tokens: Vec::new(),
+            start: 0,
+            current: 0,
+            line: 1,
+        }
     }
-}
 
-fn lex_number(lex: &mut Lexer<Token>) -> f64 {
-    let slice = lex.slice();
-    slice.parse().unwrap()
-}
+    pub fn scan_tokens(mut self) -> Vec<Token<'source>> {
+        while !self.is_at_end() {
+            self.start = self.current;
+            self.scan_token()
+        }
 
-fn lex_quantity(lex: &mut Lexer<Token>) -> Quantity {
-    let slice = lex.slice();
-    let num: f64 = slice[..slice.len() - 1].parse().unwrap();
+        self.tokens.push(Token {
+            typ: TokenType::Eof,
+            lexeme: "",
+            literal: None,
+            line: self.line,
+        });
+        self.tokens
+    }
 
-    let unit = match &slice[slice.len() - 1..slice.len()] {
-        "x" => Unit::Rep,
-        "%" => Unit::Percent,
-        "s" => Unit::Time(TimeUnit::Second),
-        "m" => Unit::Time(TimeUnit::Minute),
-        _ => unreachable!(),
-    };
+    fn advance(&mut self) -> &str {
+        self.current += 1;
+        let end = self.current.min(self.src.len());
+        dbg!(&self.src[self.current..end])
+    }
 
-    Quantity::new(num, unit)
+    fn is_at_end(&self) -> bool {
+        self.current >= self.src.len()
+    }
+
+    fn scan_token(&mut self) {
+        match self.advance() {
+            "(" => self.add_token(TokenType::LParen),
+            _ => unimplemented!(),
+        }
+    }
+
+    fn add_token(&mut self, typ: TokenType) {
+        self.add_token_with_literal(typ, None)
+    }
+
+    fn add_token_with_literal(&mut self, typ: TokenType, literal: Option<TokenLiteral>) {
+        let lexeme = &self.src[self.start..self.current];
+        self.tokens.push(Token {
+            typ,
+            lexeme,
+            literal,
+            line: self.line,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -108,48 +128,14 @@ mod tests {
 
     #[test]
     fn lexer() {
-        let wmd_content = r#"3x rpe(8) 30.5s "this a string" fn if else true
-            nil 5.0 10 false + - / * != ! == > >= < <= = and or
-            
-            "#;
-
-        let tokens: Vec<_> = Token::lexer(&wmd_content).collect();
-        assert_eq!(
-            tokens,
-            &[
-                Token::Quantity(Quantity::new(3.0, Unit::Rep)),
-                Token::Ident,
-                Token::LRound,
-                Token::Num(8.0),
-                Token::RRound,
-                Token::Quantity(Quantity::new(30.5, Unit::Time(TimeUnit::Second))),
-                Token::String,
-                Token::Fn,
-                Token::If,
-                Token::Else,
-                Token::Bool(true),
-                Token::Newline,
-                Token::Nil,
-                Token::Num(5.0),
-                Token::Num(10.0),
-                Token::Bool(false),
-                Token::OpPlus,
-                Token::OpMinus,
-                Token::OpSlash,
-                Token::OpStar,
-                Token::OpNotEq,
-                Token::OpBang,
-                Token::OpEq,
-                Token::OpGt,
-                Token::OpGte,
-                Token::OpLt,
-                Token::OpLte,
-                Token::OpAssign,
-                Token::And,
-                Token::Or,
-                Token::Newline,
-                Token::Newline,
-            ]
-        );
+        // let wmd_content = r#"3x rpe(8) 30.5s "this a string" fn if else true
+        //     nil 5.0 10 false + - / * != ! == > >= < <= = and or
+        //
+        //     "#;
+        let wmd_content = "(";
+        let lexer = Lexer::new(&wmd_content);
+        let tokens = lexer.scan_tokens();
+        println!("{tokens:#?}");
+        panic!()
     }
 }

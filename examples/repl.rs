@@ -1,7 +1,7 @@
 use std::{env, error::Error, fs};
 
 use rustyline::{error::ReadlineError, Editor};
-use wmd::parser::Parser;
+use wmd::lexer::Lexer;
 
 const HISTORY: &'static str = ".wmd-history.txt";
 
@@ -13,9 +13,9 @@ fn repl() -> Result<(), Box<dyn Error>> {
         let readline = rl.readline("wmd> ");
         match readline {
             Ok(line) => {
-                let mut parser = Parser::new(&line);
-                let exprs = parser.parse();
-                println!("{exprs:#?}");
+                let lexer = Lexer::new(&line);
+                let tokens = lexer.scan_tokens();
+                println!("{tokens:#?}");
                 rl.add_history_entry(line.as_str());
             }
             Err(ReadlineError::Interrupted | ReadlineError::Eof) => break,

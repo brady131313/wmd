@@ -1,7 +1,23 @@
+use std::str::FromStr;
+
+use crate::WmdError;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimeUnit {
     Second,
     Minute,
+}
+
+impl FromStr for TimeUnit {
+    type Err = WmdError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "s" => Ok(TimeUnit::Second),
+            "m" => Ok(TimeUnit::Minute),
+            _ => Err(WmdError::BadUnit),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -9,6 +25,18 @@ pub enum Unit {
     Percent,
     Rep,
     Time(TimeUnit),
+}
+
+impl FromStr for Unit {
+    type Err = WmdError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "x" => Ok(Unit::Rep),
+            "%" => Ok(Unit::Percent),
+            t => Ok(Unit::Time(TimeUnit::from_str(t)?)),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

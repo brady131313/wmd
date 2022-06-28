@@ -2,7 +2,7 @@ use logos::{Lexer, Logos};
 
 use crate::ast::{Quantity, TimeUnit, Unit};
 
-#[derive(Debug, PartialEq, Logos)]
+#[derive(Debug, Clone, PartialEq, Logos)]
 pub enum Token {
     #[regex(r"([+-]?([0-9]+\.?[0-9]*|\.[0-9]+))([xsm%])", lex_quantity)]
     Quantity(Quantity),
@@ -66,8 +66,6 @@ pub enum Token {
     And,
     #[token("or")]
     Or,
-    #[token("let")]
-    Let,
     #[token("while")]
     While,
     EOI,
@@ -113,7 +111,7 @@ mod tests {
         let wmd_content = r#"3x rpe(8) 30.5s "this a string" fn if else true
             nil 5.0 10 false + - / * != ! == > >= < <= = and or
             
-            let"#;
+            "#;
 
         let tokens: Vec<_> = Token::lexer(&wmd_content).collect();
         assert_eq!(
@@ -151,7 +149,6 @@ mod tests {
                 Token::Or,
                 Token::Newline,
                 Token::Newline,
-                Token::Let
             ]
         );
     }

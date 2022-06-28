@@ -1,3 +1,5 @@
+use crate::lexer::Token;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimeUnit {
     Second,
@@ -18,4 +20,20 @@ impl Quantity {
     pub fn new(value: f64, unit: Unit) -> Self {
         Self(value, unit)
     }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Expr {
+    Binary(Box<Expr>, Token, Box<Expr>),
+    Unary(Token, Box<Expr>),
+    Literal(Literal),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Literal {
+    Nil,
+    Bool(bool),
+    Number(f64),
+    Quantity(Quantity),
+    String(String),
 }

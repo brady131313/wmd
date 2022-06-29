@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::WmdError;
+use crate::{lexer::TokenLiteral, WmdError};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimeUnit {
@@ -52,6 +52,7 @@ impl Quantity {
 pub enum Expr {
     Binary(Box<Expr>, String, Box<Expr>),
     Unary(String, Box<Expr>),
+    Grouping(Box<Expr>),
     Literal(Literal),
 }
 
@@ -62,4 +63,14 @@ pub enum Literal {
     Number(f64),
     Quantity(Quantity),
     String(String),
+}
+
+impl From<TokenLiteral> for Literal {
+    fn from(lit: TokenLiteral) -> Self {
+        match lit {
+            TokenLiteral::String(s) => Literal::String(s),
+            TokenLiteral::Number(n) => Literal::Number(n),
+            TokenLiteral::Quantity(q) => Literal::Quantity(q),
+        }
+    }
 }

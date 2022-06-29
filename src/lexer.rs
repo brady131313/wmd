@@ -21,7 +21,7 @@ macro_rules! is_alpha_numeric {
     };
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TokenType {
     // Single character tokens
     LParen,
@@ -48,9 +48,9 @@ pub enum TokenType {
 
     // Literals
     Identifier,
-    String(String),
-    Number(f64),
-    Quantity(Quantity),
+    String,
+    Number,
+    Quantity,
 
     // Keywords
     And,
@@ -68,10 +68,18 @@ pub enum TokenType {
 }
 
 #[derive(Debug, Clone)]
+pub enum TokenLiteral {
+    String(String),
+    Number(f64),
+    Quantity(Quantity),
+}
+
+#[derive(Debug, Clone)]
 pub struct Token<'source> {
-    typ: TokenType,
-    lexeme: &'source str,
-    line: usize,
+    pub typ: TokenType,
+    pub lexeme: &'source str,
+    pub literal: Option<TokenLiteral>,
+    pub line: usize,
 }
 
 pub struct Lexer<'source, R> {
@@ -104,6 +112,7 @@ impl<'source, R: ErrorReporter> Lexer<'source, R> {
         self.tokens.push(Token {
             typ: TokenType::Eof,
             lexeme: "",
+            literal: None,
             line: self.line,
         });
         self.tokens
@@ -224,13 +233,19 @@ impl<'source, R: ErrorReporter> Lexer<'source, R> {
             self.advance();
 
             let number = &self.src[self.start..self.current - 1];
-            self.add_token(TokenType::Quantity(Quantity::new(
-                number.parse().unwrap(),
-                unit,
-            )))
+            self.add_token_with_literal(
+                TokenType::Quantity,
+                Some(TokenLiteral::Quantity(Quantity::new(
+                    number.parse().unwrap(),
+                    unit,
+                ))),
+            )
         } else {
             let number = &self.src[self.start..self.current];
-            self.add_token(TokenType::Number(number.parse().unwrap()))
+            self.add_token_with_literal(
+                TokenType::Number,
+                Some(TokenLiteral::Number(number.parse().unwrap())),
+            )
         }
     }
 
@@ -252,7 +267,7 @@ impl<'source, R: ErrorReporter> Lexer<'source, R> {
 
         // Trim surrounding quotes
         let string = &self.src[self.start + 1..self.current - 1];
-        self.add_token(TokenType::String(string.into()))
+        self.add_token_with_literal(TokenType::String, Some(TokenLiteral::String(string.into())))
     }
 
     fn matches(&mut self, expected: &str) -> bool {
@@ -288,10 +303,15 @@ impl<'source, R: ErrorReporter> Lexer<'source, R> {
     }
 
     fn add_token(&mut self, typ: TokenType) {
+        self.add_token_with_literal(typ, None)
+    }
+
+    fn add_token_with_literal(&mut self, typ: TokenType, literal: Option<TokenLiteral>) {
         let lexeme = &self.src[self.start..self.current];
         self.tokens.push(Token {
             typ,
             lexeme,
+            literal,
             line: self.line,
         })
     }

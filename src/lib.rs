@@ -6,4 +6,5 @@ pub mod reporting;
 #[derive(Debug)]
 pub enum WmdError {
     BadUnit,
+    ParseError,
 }

@@ -18,8 +18,8 @@ fn repl() -> Result<(), Box<dyn Error>> {
                 let tokens = lexer.scan_tokens();
                 // println!("{tokens:#?}");
 
-                let mut parser = Parser::new(tokens);
-                let expr = parser.parse().unwrap();
+                let mut parser = Parser::new(tokens, &reporter);
+                let expr = parser.parse();
                 println!("{expr:#?}");
 
                 rl.add_history_entry(line.as_str());

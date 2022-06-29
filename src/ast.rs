@@ -1,6 +1,9 @@
 use std::str::FromStr;
 
-use crate::{lexer::TokenLiteral, WmdError};
+use crate::{
+    lexer::{OpToken, TokenLiteral},
+    WmdError,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimeUnit {
@@ -50,8 +53,8 @@ impl Quantity {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
-    Binary(Box<Expr>, String, Box<Expr>),
-    Unary(String, Box<Expr>),
+    Binary(Box<Expr>, OpToken, Box<Expr>),
+    Unary(OpToken, Box<Expr>),
     Grouping(Box<Expr>),
     Literal(Literal),
 }

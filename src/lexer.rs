@@ -1,4 +1,4 @@
-use crate::ast::{Quantity, TimeUnit, Unit};
+use crate::{ast::Quantity, reporting::ErrorReporter};
 
 macro_rules! is_digit {
     () => {
@@ -74,22 +74,24 @@ pub struct Token<'source> {
     line: usize,
 }
 
-pub struct Lexer<'source> {
+pub struct Lexer<'source, R> {
     src: &'source str,
     tokens: Vec<Token<'source>>,
     start: usize,   // First character in lexeme being scanned
     current: usize, // character currently being considered
     line: usize,
+    reporter: R,
 }
 
-impl<'source> Lexer<'source> {
-    pub fn new(src: &'source str) -> Self {
+impl<'source, R: ErrorReporter> Lexer<'source, R> {
+    pub fn new(src: &'source str, reporter: R) -> Self {
         Self {
             src,
             tokens: Vec::new(),
             start: 0,
             current: 0,
             line: 1,
+            reporter,
         }
     }
 
@@ -172,7 +174,7 @@ impl<'source> Lexer<'source> {
             "\"" => self.string(),
             is_digit!() => self.number(),
             is_alpha!() => self.identifier(),
-            _ => unimplemented!(),
+            _ => self.reporter.error(self.line, "Unexpected character."),
         }
     }
 
@@ -297,6 +299,8 @@ impl<'source> Lexer<'source> {
 
 #[cfg(test)]
 mod tests {
+    use crate::reporting::StdoutReporter;
+
     use super::*;
 
     #[test]
@@ -316,7 +320,8 @@ mod tests {
             true while
             30s 2m 30x 50%
             "#;
-        let lexer = Lexer::new(&wmd_content);
+        let reporter = StdoutReporter;
+        let lexer = Lexer::new(&wmd_content, &reporter);
         let tokens = lexer.scan_tokens();
         println!("{tokens:#?}");
         panic!()

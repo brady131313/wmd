@@ -84,21 +84,6 @@ pub struct Token<'source> {
     pub line: usize,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct OpToken {
-    pub typ: TokenType,
-    pub line: usize,
-}
-
-impl<'source> From<&Token<'source>> for OpToken {
-    fn from(token: &Token<'source>) -> Self {
-        OpToken {
-            typ: token.typ,
-            line: token.line,
-        }
-    }
-}
-
 pub struct Lexer<'source, R> {
     src: &'source str,
     tokens: Vec<Token<'source>>,

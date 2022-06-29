@@ -57,7 +57,7 @@ impl<'source, R: ErrorReporter> Parser<'source, R> {
         let mut expr = self.comparison()?;
 
         while match_tok!(self, TokenType::BangEqual | TokenType::EqualEqual) {
-            let operator = self.previous().into();
+            let operator = self.previous().try_into()?;
             let right = self.comparison()?;
 
             expr = Expr::Binary(Box::new(expr), operator, Box::new(right))
@@ -73,7 +73,7 @@ impl<'source, R: ErrorReporter> Parser<'source, R> {
             self,
             TokenType::Greater | TokenType::GreaterEqual | TokenType::Less | TokenType::LessEqual
         ) {
-            let operator = self.previous().into();
+            let operator = self.previous().try_into()?;
             let right = self.term()?;
 
             expr = Expr::Binary(Box::new(expr), operator, Box::new(right))
@@ -86,7 +86,7 @@ impl<'source, R: ErrorReporter> Parser<'source, R> {
         let mut expr = self.factor()?;
 
         while match_tok!(self, TokenType::Minus | TokenType::Plus) {
-            let operator = self.previous().into();
+            let operator = self.previous().try_into()?;
             let right = self.factor()?;
 
             expr = Expr::Binary(Box::new(expr), operator, Box::new(right))
@@ -99,7 +99,7 @@ impl<'source, R: ErrorReporter> Parser<'source, R> {
         let mut expr = self.unary()?;
 
         while match_tok!(self, TokenType::Slash | TokenType::Star) {
-            let operator = self.previous().into();
+            let operator = self.previous().try_into()?;
             let right = self.unary()?;
 
             expr = Expr::Binary(Box::new(expr), operator, Box::new(right))
@@ -110,7 +110,7 @@ impl<'source, R: ErrorReporter> Parser<'source, R> {
 
     fn unary(&mut self) -> Result<Expr, WmdError> {
         if match_tok!(self, TokenType::Bang | TokenType::Minus) {
-            let operator = self.previous().into();
+            let operator = self.previous().try_into()?;
             let right = self.unary()?;
 
             Ok(Expr::Unary(operator, Box::new(right)))

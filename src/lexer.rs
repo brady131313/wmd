@@ -28,6 +28,8 @@ pub enum TokenType {
     RParen,
     LBrace,
     RBrace,
+    LBracket,
+    RBracket,
     Comma,
     Dot,
     Minus,
@@ -150,6 +152,8 @@ impl<'source, R: ErrorReporter> Lexer<'source, R> {
             ")" => self.add_token(TokenType::RParen),
             "{" => self.add_token(TokenType::LBrace),
             "}" => self.add_token(TokenType::RBrace),
+            "[" => self.add_token(TokenType::LBracket),
+            "]" => self.add_token(TokenType::RBracket),
             "," => self.add_token(TokenType::Comma),
             "." => self.add_token(TokenType::Dot),
             "-" => self.add_token(TokenType::Minus),
@@ -345,7 +349,7 @@ mod tests {
         //
         //     "#;
         let wmd_content = r#"// this is a comment
-            (( )){} // grouping stuff
+            (( )){}[] // grouping stuff
             !*+-/=<> <= == // operators
             "this is a string"
             123 + 5.55

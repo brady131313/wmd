@@ -56,6 +56,7 @@ pub enum Expr {
     Binary(Box<Expr>, OpToken, Box<Expr>),
     Unary(OpToken, Box<Expr>),
     Grouping(Box<Expr>),
+    List(Vec<Expr>),
     Literal(Literal),
 }
 

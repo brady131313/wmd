@@ -5,6 +5,8 @@ use crate::{
     WmdError,
 };
 
+/// Check if next token matches pattern.
+/// Implemented as macro so pattern matching syntax can be used
 macro_rules! check {
     ($self:ident, $token_typ:pat) => {
         if $self.is_at_end() {
@@ -15,6 +17,8 @@ macro_rules! check {
     };
 }
 
+/// Consume token if it matches pattern.
+/// Implemented as macro so pattern matching syntax can be used
 macro_rules! match_tok {
     ($self:ident, $token_typ:pat) => {
         if check!($self, $token_typ) {
@@ -126,10 +130,27 @@ impl<'source, R: ErrorReporter> Parser<'source, R> {
             self,
             TokenType::Number | TokenType::Quantity | TokenType::String
         ) {
-            let literal = self.previous().literal.clone().unwrap();
+            let literal = self.previous_mut().literal.take().unwrap();
+
             Ok(Expr::Literal(literal.into()))
+        } else if match_tok!(self, TokenType::LBracket) {
+            let mut exprs = Vec::new();
+
+            // Allows trailing comma in list
+            while !check!(self, TokenType::RBracket) && !self.is_at_end() {
+                exprs.push(self.expression()?);
+
+                // Consume ',' if another element is in list
+                if !check!(self, TokenType::RBracket) {
+                    self.consume(TokenType::Comma, "Expect ',' between list elements.")?;
+                }
+            }
+
+            self.consume(TokenType::RBracket, "Expect ']' after list.")?;
+            Ok(Expr::List(exprs))
         } else if match_tok!(self, TokenType::LParen) {
             let expr = self.expression()?;
+
             self.consume(TokenType::RParen, "Expect ')' after expression.")?;
             Ok(Expr::Grouping(Box::new(expr)))
         } else {
@@ -155,6 +176,11 @@ impl<'source, R: ErrorReporter> Parser<'source, R> {
 
     fn previous(&self) -> &Token<'source> {
         &self.tokens[self.current - 1]
+    }
+
+    /// Mutable get previous token literal so it can be taken without cloning
+    fn previous_mut(&mut self) -> &mut Token<'source> {
+        &mut self.tokens[self.current - 1]
     }
 
     fn consume(&mut self, typ: TokenType, msg: &str) -> Result<&Token, WmdError> {

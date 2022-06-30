@@ -1,4 +1,4 @@
-use ast::{OpToken, UnaryOp};
+use ast::{BinaryOp, OpToken, UnaryOp};
 use lexer::TokenType;
 use thiserror::Error;
 
@@ -18,4 +18,8 @@ pub enum WmdError {
     UnexpectedTokenOp(TokenType),
     #[error("[line {}] Unary operator '{}' requires number operand", .0.line, .0.typ)]
     UnaryNumberRequired(OpToken<UnaryOp>),
+    #[error("[line {}] Binary operator '{}' requires number operand", .0.line, .0.typ)]
+    BinaryNumberRequired(OpToken<BinaryOp>),
+    #[error("[line {}] Binary operator '+' requires a number or string", .0.line)]
+    NumberOrStringRequired(OpToken<BinaryOp>),
 }

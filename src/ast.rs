@@ -147,7 +147,7 @@ impl TryFrom<TokenType> for BinaryOp {
             TokenType::LessEqual => Ok(BinaryOp::LessEqual),
             TokenType::Greater => Ok(BinaryOp::Greater),
             TokenType::GreaterEqual => Ok(BinaryOp::GreaterEqual),
-            TokenType::Equal => Ok(BinaryOp::EqualEqual),
+            TokenType::EqualEqual => Ok(BinaryOp::EqualEqual),
             TokenType::BangEqual => Ok(BinaryOp::BangEqual),
             t => Err(WmdError::UnexpectedTokenOp(t)),
         }
@@ -227,6 +227,14 @@ impl Literal {
             Some(*n)
         } else {
             None
+        }
+    }
+
+    pub fn is_truthy(&self) -> bool {
+        match self {
+            Literal::Nil => false,
+            Literal::Bool(b) => *b,
+            _ => true,
         }
     }
 }

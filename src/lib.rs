@@ -16,6 +16,8 @@ pub enum WmdError {
     ParseError,
     #[error("unexpected operator: {0:?}")]
     UnexpectedTokenOp(TokenType),
+    #[error("expected identifier")]
+    ExpectedIdentifier,
     #[error("[line {}] Unary operator '{}' requires number operand", .0.line, .0.typ)]
     UnaryNumberRequired(OpToken<UnaryOp>),
     #[error("[line {}] Binary operator '{}' requires number operand", .0.line, .0.typ)]

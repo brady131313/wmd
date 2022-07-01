@@ -203,13 +203,44 @@ where
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct IdentToken {
+    pub ident: String,
+    pub line: usize,
+}
+
+impl<'source> TryFrom<&Token<'source>> for IdentToken {
+    type Error = WmdError;
+
+    fn try_from(value: &Token<'source>) -> Result<Self, Self::Error> {
+        if value.typ == TokenType::Identifier {
+            Ok(IdentToken {
+                line: value.line,
+                ident: value.lexeme.to_owned(),
+            })
+        } else {
+            Err(WmdError::ExpectedIdentifier)
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Stmt {
+    None,
+    Expr(Expr),
+    Let(IdentToken, Expr),
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
+    Logical(Box<Expr>, OpToken<LogicalOp>, Box<Expr>),
     Binary(Box<Expr>, OpToken<BinaryOp>, Box<Expr>),
     Unary(OpToken<UnaryOp>, Box<Expr>),
     Grouping(Box<Expr>),
     List(Vec<Expr>),
     Literal(Literal),
+    Var(IdentToken),
+    Block(Vec<Stmt>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -219,6 +250,7 @@ pub enum Literal {
     Number(f64),
     Quantity(Quantity),
     String(String),
+    List(Vec<Literal>),
 }
 
 impl Literal {
@@ -247,6 +279,14 @@ impl Display for Literal {
             Literal::Number(n) => write!(f, "{n}"),
             Literal::Quantity(q) => write!(f, "{q}"),
             Literal::String(s) => write!(f, "\"{s}\""),
+            Literal::List(l) => {
+                let lits = l
+                    .into_iter()
+                    .map(|e| e.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                write!(f, "[{lits}]")
+            }
         }
     }
 }
@@ -276,16 +316,30 @@ pub trait ExprVisitor<T> {
     ) -> Result<T, WmdError>;
 
     fn visit_unary(&mut self, op: OpToken<UnaryOp>, expr: &Expr) -> Result<T, WmdError>;
+
+    fn visit_logical(
+        &mut self,
+        lhs: &Expr,
+        op: OpToken<LogicalOp>,
+        rhs: &Expr,
+    ) -> Result<T, WmdError>;
+
+    fn visit_var(&mut self, ident: &IdentToken) -> Result<T, WmdError>;
+
+    fn visit_block(&mut self, stmts: &[Stmt]) -> Result<T, WmdError>;
 }
 
 impl Expr {
     pub fn accept<T, V: ExprVisitor<T>>(&self, visitor: &mut V) -> Result<T, WmdError> {
         match self {
+            Expr::Logical(l, o, r) => visitor.visit_logical(l, *o, r),
             Expr::Binary(l, o, r) => visitor.visit_binary(l, *o, r),
             Expr::Unary(o, e) => visitor.visit_unary(*o, e),
             Expr::Grouping(g) => visitor.visit_group(g),
             Expr::List(l) => visitor.visit_list(l),
             Expr::Literal(l) => visitor.visit_literal(l),
+            Expr::Var(v) => visitor.visit_var(v),
+            Expr::Block(b) => visitor.visit_block(b),
         }
     }
 }

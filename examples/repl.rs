@@ -22,17 +22,17 @@ fn repl() -> Result<(), Box<dyn Error>> {
 
                 let mut parser = Parser::new(tokens, &reporter);
                 let expr = parser.parse();
-                // println!("{expr:#?}");
-                match expr {
-                    Ok(expr) => match interpreter.evaluate(&expr) {
-                        Ok(res) => {
-                            println!("{res}");
-                            rl.add_history_entry(line.as_str());
-                        }
-                        Err(e) => eprintln!("{e}"),
-                    },
-                    Err(e) => eprintln!("{e:?}"),
-                }
+                println!("{expr:#?}");
+                // match expr {
+                //     Ok(expr) => match interpreter.evaluate(&expr) {
+                //         Ok(res) => {
+                //             println!("{res}");
+                //             rl.add_history_entry(line.as_str());
+                //         }
+                //         Err(e) => eprintln!("{e}"),
+                //     },
+                //     Err(e) => eprintln!("{e:?}"),
+                // }
             }
             Err(ReadlineError::Interrupted | ReadlineError::Eof) => break,
             Err(err) => {
@@ -58,15 +58,15 @@ fn run_file(path: &str) -> Result<(), Box<dyn Error>> {
     let mut parser = Parser::new(tokens, &reporter);
     let expr = parser.parse();
 
-    match expr {
-        Ok(expr) => match interpreter.evaluate(&expr) {
-            Ok(res) => {
-                println!("{res}");
-            }
-            Err(e) => eprintln!("{e}"),
-        },
-        Err(e) => eprintln!("{e:?}"),
-    }
+    // match expr {
+    //     Ok(expr) => match interpreter.evaluate(&expr) {
+    //         Ok(res) => {
+    //             println!("{res}");
+    //         }
+    //         Err(e) => eprintln!("{e}"),
+    //     },
+    //     Err(e) => eprintln!("{e:?}"),
+    // }
 
     Ok(())
 }

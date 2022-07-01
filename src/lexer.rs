@@ -65,6 +65,7 @@ pub enum TokenType {
     Or,
     True,
     While,
+    Let,
 
     Eof,
 }
@@ -209,6 +210,7 @@ impl<'source, R: ErrorReporter> Lexer<'source, R> {
             "or" => TokenType::Or,
             "true" => TokenType::True,
             "while" => TokenType::While,
+            "let" => TokenType::Let,
             _ => TokenType::Identifier,
         };
 
@@ -329,10 +331,6 @@ mod tests {
 
     #[test]
     fn lexer() {
-        // let wmd_content = r#"3x rpe(8) 30.5s "this a string" fn if else true
-        //     nil 5.0 10 false + - / * != ! == > >= < <= = and or
-        //
-        //     "#;
         let wmd_content = r#"// this is a comment
             (( )){}[] // grouping stuff
             !*+-/=<> <= == // operators

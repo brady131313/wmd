@@ -1,32 +1,23 @@
 use crate::{
-    ast::{Expr, Literal},
+    ast::{Expr, Literal, Stmt},
     lexer::{Token, TokenType},
     reporting::ErrorReporter,
     WmdError,
 };
 
-/// Check if next token matches pattern.
-/// Implemented as macro so pattern matching syntax can be used
-macro_rules! check {
-    ($self:ident, $token_typ:pat) => {
-        if $self.is_at_end() {
-            false
-        } else {
-            matches!($self.peek().typ, $token_typ)
-        }
-    };
-}
-
 /// Consume token if it matches pattern.
 /// Implemented as macro so pattern matching syntax can be used
 macro_rules! match_tok {
-    ($self:ident, $token_typ:pat) => {
-        if check!($self, $token_typ) {
+    ($self:ident, $token_typ:expr) => {
+        if $self.check($token_typ) {
             $self.advance();
             true
         } else {
             false
         }
+    };
+    ($self:ident, $head_typ:expr, $($tail_typ:expr),+) => {
+        match_tok!($self, $head_typ) || match_tok!($self, $($tail_typ),+)
     };
 }
 
@@ -45,18 +36,112 @@ impl<'source, R: ErrorReporter> Parser<'source, R> {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Expr, WmdError> {
-        self.expression()
+    pub fn parse(&mut self) -> Result<Vec<Stmt>, WmdError> {
+        let mut stmts = Vec::new();
+        while !self.is_at_end() {
+            stmts.push(self.declaration()?);
+        }
+
+        Ok(stmts)
+    }
+
+    fn declaration(&mut self) -> Result<Stmt, WmdError> {
+        let decl = if match_tok!(self, TokenType::Let) {
+            self.let_declaration()
+        } else {
+            self.statement()
+        };
+
+        match decl {
+            Ok(d) => Ok(d),
+            Err(_) => {
+                self.synchronize();
+                Ok(Stmt::None)
+            }
+        }
+    }
+
+    fn let_declaration(&mut self) -> Result<Stmt, WmdError> {
+        let name = self
+            .consume(TokenType::Identifier, "Expect variable name.")?
+            .try_into()?;
+
+        let mut inititializer = Expr::Literal(Literal::Nil);
+        if match_tok!(self, TokenType::Equal) {
+            inititializer = self.expression()?;
+        }
+
+        self.consume(TokenType::SemiColon, "Expect ';' after let declaration.")?;
+        Ok(Stmt::Let(name, inititializer))
+    }
+
+    fn statement(&mut self) -> Result<Stmt, WmdError> {
+        self.expression_statement()
+    }
+
+    fn expression_statement(&mut self) -> Result<Stmt, WmdError> {
+        let expr = self.expression()?;
+        self.consume(TokenType::SemiColon, "Expect ';' after expression.")?;
+        Ok(Stmt::Expr(expr))
     }
 
     fn expression(&mut self) -> Result<Expr, WmdError> {
-        self.equality()
+        if match_tok!(self, TokenType::LBrace) {
+            self.block()
+        } else {
+            self.or()
+        }
+    }
+
+    /// Assumes that the opening '{' has already been consumed.
+    /// Consumes declarations but permits the last statement to exclude
+    /// a semicolon if it is an expression. If semicolon is still included
+    /// than implicit nil expr is added to block
+    fn block(&mut self) -> Result<Expr, WmdError> {
+        let mut stmts = Vec::new();
+
+        while !self.check(TokenType::RBrace) && !self.is_at_end() {
+            match self.declaration() {
+                Ok(s) => stmts.push(s),
+                Err(e) => todo!(),
+            }
+        }
+
+        self.consume(TokenType::RBrace, "Expect '}' after block.")?;
+        todo!()
+        // Ok(Expr::Block(stmts))
+    }
+
+    fn or(&mut self) -> Result<Expr, WmdError> {
+        let mut expr = self.and()?;
+
+        while match_tok!(self, TokenType::Or) {
+            let operator = self.previous().try_into()?;
+            let right = self.and()?;
+
+            expr = Expr::Logical(Box::new(expr), operator, Box::new(right))
+        }
+
+        Ok(expr)
+    }
+
+    fn and(&mut self) -> Result<Expr, WmdError> {
+        let mut expr = self.equality()?;
+
+        while match_tok!(self, TokenType::And) {
+            let operator = self.previous().try_into()?;
+            let right = self.equality()?;
+
+            expr = Expr::Logical(Box::new(expr), operator, Box::new(right))
+        }
+
+        Ok(expr)
     }
 
     fn equality(&mut self) -> Result<Expr, WmdError> {
         let mut expr = self.comparison()?;
 
-        while match_tok!(self, TokenType::BangEqual | TokenType::EqualEqual) {
+        while match_tok!(self, TokenType::BangEqual, TokenType::EqualEqual) {
             let operator = self.previous().try_into()?;
             let right = self.comparison()?;
 
@@ -71,7 +156,10 @@ impl<'source, R: ErrorReporter> Parser<'source, R> {
 
         while match_tok!(
             self,
-            TokenType::Greater | TokenType::GreaterEqual | TokenType::Less | TokenType::LessEqual
+            TokenType::Greater,
+            TokenType::GreaterEqual,
+            TokenType::Less,
+            TokenType::LessEqual
         ) {
             let operator = self.previous().try_into()?;
             let right = self.term()?;
@@ -85,7 +173,7 @@ impl<'source, R: ErrorReporter> Parser<'source, R> {
     fn term(&mut self) -> Result<Expr, WmdError> {
         let mut expr = self.factor()?;
 
-        while match_tok!(self, TokenType::Minus | TokenType::Plus) {
+        while match_tok!(self, TokenType::Minus, TokenType::Plus) {
             let operator = self.previous().try_into()?;
             let right = self.factor()?;
 
@@ -98,7 +186,7 @@ impl<'source, R: ErrorReporter> Parser<'source, R> {
     fn factor(&mut self) -> Result<Expr, WmdError> {
         let mut expr = self.unary()?;
 
-        while match_tok!(self, TokenType::Slash | TokenType::Star) {
+        while match_tok!(self, TokenType::Slash, TokenType::Star) {
             let operator = self.previous().try_into()?;
             let right = self.unary()?;
 
@@ -109,7 +197,7 @@ impl<'source, R: ErrorReporter> Parser<'source, R> {
     }
 
     fn unary(&mut self) -> Result<Expr, WmdError> {
-        if match_tok!(self, TokenType::Bang | TokenType::Minus) {
+        if match_tok!(self, TokenType::Bang, TokenType::Minus) {
             let operator = self.previous().try_into()?;
             let right = self.unary()?;
 
@@ -128,20 +216,25 @@ impl<'source, R: ErrorReporter> Parser<'source, R> {
             Ok(Expr::Literal(Literal::Nil))
         } else if match_tok!(
             self,
-            TokenType::Number | TokenType::Quantity | TokenType::String
+            TokenType::Number,
+            TokenType::Quantity,
+            TokenType::String
         ) {
             let literal = self.previous_mut().literal.take().unwrap();
 
             Ok(Expr::Literal(literal.into()))
+        } else if match_tok!(self, TokenType::Identifier) {
+            let ident = self.previous().try_into()?;
+            Ok(Expr::Var(ident))
         } else if match_tok!(self, TokenType::LBracket) {
             let mut exprs = Vec::new();
 
             // Allows trailing comma in list
-            while !check!(self, TokenType::RBracket) && !self.is_at_end() {
+            while !self.check(TokenType::RBracket) && !self.is_at_end() {
                 exprs.push(self.expression()?);
 
                 // Consume ',' if another element is in list
-                if !check!(self, TokenType::RBracket) {
+                if !self.check(TokenType::RBracket) {
                     self.consume(TokenType::Comma, "Expect ',' between list elements.")?;
                 }
             }
@@ -183,8 +276,16 @@ impl<'source, R: ErrorReporter> Parser<'source, R> {
         &mut self.tokens[self.current - 1]
     }
 
+    fn check(&self, typ: TokenType) -> bool {
+        if self.is_at_end() {
+            false
+        } else {
+            self.peek().typ == typ
+        }
+    }
+
     fn consume(&mut self, typ: TokenType, msg: &str) -> Result<&Token, WmdError> {
-        if check!(self, typ) {
+        if self.check(typ) {
             Ok(self.advance())
         } else {
             Err(self.error(self.peek(), msg))

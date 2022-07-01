@@ -1,5 +1,5 @@
 use crate::{
-    ast::{BinaryOp, Expr, ExprVisitor, Literal, OpToken, UnaryOp},
+    ast::{BinaryOp, Expr, ExprVisitor, IdentToken, Literal, LogicalOp, OpToken, Stmt, UnaryOp},
     WmdError,
 };
 
@@ -25,7 +25,8 @@ impl ExprVisitor<Literal> for Interpreter {
     }
 
     fn visit_list(&mut self, exprs: &[Expr]) -> Result<Literal, WmdError> {
-        todo!()
+        let lits: Result<Vec<_>, _> = exprs.into_iter().map(|e| self.evaluate(e)).collect();
+        Ok(Literal::List(lits?))
     }
 
     fn visit_binary(
@@ -61,6 +62,30 @@ impl ExprVisitor<Literal> for Interpreter {
             }
             UnaryOp::Bang => Ok(Literal::Bool(!rhs.is_truthy())),
         }
+    }
+
+    fn visit_logical(
+        &mut self,
+        lhs: &Expr,
+        op: OpToken<LogicalOp>,
+        rhs: &Expr,
+    ) -> Result<Literal, WmdError> {
+        let lhs = self.evaluate(lhs)?;
+
+        match op.typ {
+            LogicalOp::Or if lhs.is_truthy() => Ok(lhs),
+            LogicalOp::And if !lhs.is_truthy() => Ok(lhs),
+            _ => self.evaluate(rhs),
+        }
+    }
+
+    fn visit_var(&mut self, ident: &IdentToken) -> Result<Literal, WmdError> {
+        todo!()
+    }
+
+    /// Evaluate a list of stmts but return last expr
+    fn visit_block(&mut self, stmts: &[Stmt]) -> Result<Literal, WmdError> {
+        todo!()
     }
 }
 
